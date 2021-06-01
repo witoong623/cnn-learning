@@ -83,8 +83,12 @@ class ResNet(nn.Module):
         super().__init__()
         
         self.input_channel = 64
-        self.conv1 = nn.Conv2d(3, self.input_channel, 7, stride=2, padding=3)
-        self.max_pool = nn.MaxPool2d(3, 2, padding=1)
+        self.head = nn.Sequential(
+            nn.Conv2d(3, self.input_channel, 7, stride=2, padding=3, bias=False),
+            nn.BatchNorm2d(self.input_channel),
+            nn.ReLU(),
+            nn.MaxPool2d(3, 2, padding=1)
+        )
         self.conv2 = self._make_conv_layers(block, output_channel=64, time=block_num[0])
         self.conv3 = self._make_conv_layers(block, output_channel=128, time=block_num[1])
         self.conv4 = self._make_conv_layers(block, output_channel=256, time=block_num[2])
@@ -112,15 +116,14 @@ class ResNet(nn.Module):
         
         
     def forward(self, X):
-        x = self.conv1(X)
-        x = self.max_pool(x)
+        x = self.head(X)
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
         x = self.conv5(x)
         x = self.avg_pool(x)
         # reshape for FC linear (num_sample, features)
-        x = x.view(x.size()[0], -1)
+        x = x.view(x.size(0), -1)
 
         x = self.linear(x)
         return F.log_softmax(x, dim=1)
